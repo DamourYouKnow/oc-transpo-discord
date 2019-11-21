@@ -9,6 +9,16 @@ const tokens = {
 const client = new Discord.Client();
 const api = new OCTranspo(process.env.OCTRANSPO_CLIENT_ID, tokens.octranspo);
 
+client.on('ready', async () => {
+    try {
+        await client.user.setPresence({
+            game: {name: '| DM me a stop number!', type: 'WATCHING'}, 
+        });
+    } catch (err) {
+        console.error(err);
+    }
+});
+
 client.on('message', async (message) => {
     if (message.channel.type !== 'dm') return;
     if (!message.content || isNaN(message.content)) return;
