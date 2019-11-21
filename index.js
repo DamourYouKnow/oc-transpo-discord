@@ -29,7 +29,10 @@ client.on('message', async (message) => {
             routeData.map(formatRoute) :
             [formatRoute(routeData)];
 
-        embed.setDescription(routes.join('\n'));
+        const activeRoutes = routes
+            .filter((route) => route.times !== null)
+            .map((route) => `${route.label} - ${route.times}`);
+        embed.setDescription(activeRoutes.join('\n'));
 
         message.channel.send({embed});
     } catch (err) {
@@ -42,8 +45,8 @@ function formatRoute(route) {
     const tripData = route['Trips'];
     const times = Array.isArray(tripData) ? 
         formatTrips(tripData) :
-        formatTrips(tripData['Trip']);
-    return `${label}: ${times}`;
+        formatTrips(tripData['Trip'] || [tripData]);
+    return {label: label, times: times};
 }
 
 function formatTrips(trips) {
@@ -55,10 +58,10 @@ function formatTrips(trips) {
             `${Math.floor(time / 60)}:${time % 60}` ;
         return realtime ? `${adjusted}\\*` : adjusted;
     });
-    if (times.length === 0) return 'No trips';
+    if (times.length === 0) return null;
     if (times.length === 1) return times[0];
     if (times.length === 2) return `${times[0]} & ${times[1]}`;
-    return `${times.slice(0, -1).join(', ')}, & ${times[times.length - 1]}`;
+    return `${times.slice(0, -1).join(', ')} & ${times[times.length - 1]}`;
 }
 
 client.login(tokens.discord);
