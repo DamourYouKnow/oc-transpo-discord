@@ -72,7 +72,7 @@ function timeString(trips) {
     const times = etas.map((eta, i) => {
         if (!trips[i].bus) return eta;
         if (!trips[i].bus.gps) return eta;
-        return `${eta}\*`;
+        return `${eta}\\*`;
     });
     if (times.length === 0) return null;
     if (times.length === 1) return times[0];
