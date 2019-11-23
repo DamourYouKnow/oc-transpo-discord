@@ -11,6 +11,6 @@
   "license": "MIT",
   "dependencies": {
     "discord.js": "^11.5.1",
-    "oc-transpo-js": "^1.0.0"
+    "oc-transpo-js": "^2.0.1"
   }
 }

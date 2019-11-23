@@ -1,4 +1,4 @@
-const OCTranspo = require('oc-transpo-js');
+const OCTranspo = require('oc-transpo-js').default;
 const Discord = require('discord.js');
 
 const tokens = {
@@ -24,54 +24,66 @@ client.on('message', async (message) => {
     if (!message.content || isNaN(message.content)) return;
     
     try {
-        const result = await api.getNextTripsForStop(Number(message.content));
-        if (result['Error']) {
-            throw Error(
-                `Sorry, I could not find info for stop ${message.content}`
-            );
+        const stop = await api.stopTrips(Number(message.content));
+   
+        const routes = stop.routes.filter((route) => route.trips.length > 0);
+        const lines = routes.map((route) => {
+            return `**${route.number} ${route.heading}** — `
+                + timeString(route.trips);
+        });
+
+        const maxBuffer = 1800;
+        let bufferSize = 0;
+        const buffer = [[]];
+        for (const line of lines) {
+            bufferSize += line.length;
+            if (bufferSize > maxBuffer) {
+                buffer.push([line]);
+                bufferSize = line.length;
+            } else {
+                buffer[buffer.length - 1].push(line);
+            }
         }
 
-        const embed = new Discord.RichEmbed();
-        embed.setTitle(result['StopDescription']);
+        const bodies = buffer.map((group) => group.join('\n'));
+        const embeds = [
+            new Discord.RichEmbed({
+                title: stop.name,
+                description: bodies[0]
+            })
+        ];
         
-        const routeData =  result['Routes']['Route'];
-        const routes = Array.isArray(routeData) ?
-            routeData.map(formatRoute) :
-            [formatRoute(routeData)];
+        for (const body of bodies.slice(1)) {
+            embeds.push(new Discord.RichEmbed({description: body}));
+        }
 
-        const activeRoutes = routes
-            .filter((route) => route.times !== null)
-            .map((route) => `${route.label} - ${route.times}`);
-        embed.setDescription(activeRoutes.join('\n'));
-
-        message.channel.send({embed});
+        for (const embed of embeds) {
+            await message.channel.send({embed});
+        }
     } catch (err) {
         message.channel.send(err.message);
     }
 });
 
-function formatRoute(route) {
-    const label = `**${route['RouteNo']} ${route['RouteHeading']}**`;
-    const tripData = route['Trips'];
-    const times = Array.isArray(tripData) ? 
-        formatTrips(tripData) :
-        formatTrips(tripData['Trip'] || [tripData]);
-    return {label: label, times: times};
-}
-
-function formatTrips(trips) {
-    const times = trips.map((trip) => {
-        const time = Number(trip['AdjustedScheduleTime']);
-        const realtime = trip['Latitude'] != '';
-        const adjusted = time < 60 ?
-            time : 
-            `${Math.floor(time / 60)}:${time % 60}` ;
-        return realtime ? `${adjusted}\\*` : adjusted;
+function timeString(trips) {
+    const etas = trips
+        .sort((tripA, tripB) => Number(tripA.eta) - Number(tripB.eta))
+        .map((trip) => formatTime(trip.eta));
+    const times = etas.map((eta, i) => {
+        if (!trips[i].bus) return eta;
+        if (!trips[i].bus.gps) return eta;
+        return `${eta}\*`;
     });
     if (times.length === 0) return null;
     if (times.length === 1) return times[0];
     if (times.length === 2) return `${times[0]} & ${times[1]}`;
     return `${times.slice(0, -1).join(', ')} & ${times[times.length - 1]}`;
+}
+
+function formatTime(time) {
+    return time < 60 ?
+        time :
+        `${Math.floor(time / 60)}:${String(time % 60).padStart(2, '0')}`;
 }
 
 client.login(tokens.discord);
